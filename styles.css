@@ -26,20 +26,81 @@ body {
   color: var(--text);
 }
 
-.cursor-book {
+.cursor-pointer {
   position: fixed;
   z-index: 9999;
-  font-size: 30px;
-  line-height: 1;
+  width: 38px;
+  height: 38px;
   pointer-events: none;
   opacity: 0;
-  filter: blur(0.7px) drop-shadow(0 3px 4px rgba(15, 23, 42, 0.22));
-  transform: translate(-50%, -50%) rotate(var(--book-angle, -12deg));
-  transition: left 100ms ease-out, top 100ms ease-out, opacity 120ms ease, transform 100ms ease-out;
+  transform: translate(-50%, -50%);
+  transition: opacity 100ms ease;
 }
 
-.cursor-book.is-visible {
+.cursor-pointer svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 2px 3px rgba(15, 23, 42, 0.25));
+}
+
+.cursor-pointer .cursor-badge {
+  fill: var(--primary);
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+
+.cursor-pointer .cursor-book-icon {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8px;
+}
+
+.cursor-pointer.is-visible {
   opacity: 1;
+}
+
+.cursor-sparkle {
+  position: fixed;
+  z-index: 9998;
+  color: #e8d8ff;
+  font-size: var(--sparkle-size);
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.35), 0 0 3px currentColor;
+  transform: translate(-50%, -50%) rotate(var(--sparkle-angle)) scale(0.35);
+  animation: cursor-sparkle-fade 850ms ease-out forwards;
+}
+
+.cursor-sparkle.is-gold {
+  color: #ffd52e;
+}
+
+@keyframes cursor-sparkle-fade {
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--sparkle-angle)) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -70%) rotate(calc(var(--sparkle-angle) + 35deg)) scale(0.55);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  body,
+  body * {
+    cursor: none !important;
+  }
+
+  body input,
+  body textarea,
+  body [contenteditable="true"] {
+    cursor: text !important;
+  }
 }
 
 a {
@@ -392,7 +453,7 @@ input {
   width: 100%;
   height: 470px;
   border-radius: 40px 40px 40px 40px;
-  background: url("DSC00476.JPG") center/cover no-repeat;
+  background: url("assets/campus-second.jpe") center/cover no-repeat;
   box-shadow: none;
   border: none;
   position: relative;
@@ -455,7 +516,7 @@ input {
   width: 100%;
   text-align: left;
   color: inherit;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.24s ease, border-color 0.24s ease, background-color 0.24s ease;
 }
 
 .library-directory-trigger,
@@ -470,9 +531,10 @@ input {
 .faculty-directory-trigger:focus-visible,
 .schedule-directory-trigger:hover,
 .schedule-directory-trigger:focus-visible {
-  transform: translateY(-2px);
-  box-shadow: 0 22px 42px rgba(19, 42, 61, 0.08);
-  border-color: rgba(13, 59, 102, 0.22);
+  transform: translateY(-4px);
+  background: #fff;
+  box-shadow: 0 18px 34px rgba(37, 99, 235, 0.1), 0 8px 18px rgba(19, 42, 61, 0.06);
+  border-color: var(--primary);
   outline: none;
 }
 
@@ -956,6 +1018,13 @@ body.modal-open {
   border-radius: 16px;
   background: rgba(37, 99, 235, 0.1);
   font-size: 1.8rem;
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.24s ease;
+}
+
+.highlight-item:hover .highlight-icon,
+.highlight-item:focus-visible .highlight-icon {
+  transform: scale(1.06);
+  background: rgba(37, 99, 235, 0.15);
 }
 
 .highlight-icon svg {
@@ -967,6 +1036,12 @@ body.modal-open {
   margin: 18px 0 10px;
   font-size: 1.28rem;
   color: var(--primary-deep);
+  transition: color 0.24s ease;
+}
+
+.highlight-item:hover h3,
+.highlight-item:focus-visible h3 {
+  color: var(--primary);
 }
 
 .highlight-item p {
@@ -1363,7 +1438,7 @@ body.modal-open {
 
 .panel-2 {
   background-image: linear-gradient(135deg, rgba(15, 23, 42, 0.36), rgba(37, 99, 235, 0.16)),
-    url("https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=800&q=80");
+    url("assets/campus-replacement.jpe");
   background-position: center;
   background-size: cover;
 }

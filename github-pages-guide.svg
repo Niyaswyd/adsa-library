@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600" role="img" aria-labelledby="title description">
+  <title id="title">Publish your website with GitHub Pages</title>
+  <desc id="description">Four steps to publish the adsa-library website using the main branch and root folder.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2f7ff"/>
+      <stop offset="1" stop-color="#e7f8f2"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#152a46" flood-opacity=".10"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#background)"/>
+  <circle cx="1065" cy="106" r="118" fill="#dbeafe" opacity=".8"/>
+  <circle cx="116" cy="1480" r="155" fill="#d1fae5" opacity=".8"/>
+
+  <g font-family="Arial, 'Noto Sans Malayalam', sans-serif">
+    <rect x="74" y="58" width="1052" height="250" rx="34" fill="#14213d"/>
+    <text x="128" y="118" fill="#9bd5ff" font-size="25" font-weight="700" letter-spacing="2">WEBSITE PUBLISH GUIDE</text>
+    <text x="128" y="184" fill="#ffffff" font-size="48" font-weight="700">GitHub Pages വഴി publish ചെയ്യാം</text>
+    <text x="128" y="239" fill="#d7e3f4" font-size="27">നിങ്ങളുടെ adsa-library website ഓൺലൈനാക്കാൻ</text>
+    <rect x="128" y="263" width="345" height="54" rx="27" fill="#253b60"/>
+    <text x="158" y="299" fill="#ffffff" font-size="22" font-weight="700">github.com/Niyaswyd/adsa-library</text>
+
+    <g filter="url(#shadow)">
+      <rect x="74" y="355" width="1052" height="225" rx="28" fill="#ffffff"/>
+      <rect x="74" y="605" width="1052" height="225" rx="28" fill="#ffffff"/>
+      <rect x="74" y="855" width="1052" height="270" rx="28" fill="#ffffff"/>
+      <rect x="74" y="1150" width="1052" height="215" rx="28" fill="#ffffff"/>
+    </g>
+
+    <g>
+      <circle cx="143" cy="421" r="36" fill="#2563eb"/>
+      <text x="143" y="432" fill="#fff" font-size="30" text-anchor="middle" font-weight="700">1</text>
+      <text x="202" y="420" fill="#15233b" font-size="34" font-weight="700">Repository തുറക്കുക</text>
+      <text x="202" y="468" fill="#52627a" font-size="26">GitHub-ൽ നിങ്ങളുടെ adsa-library repository തുറക്കുക.</text>
+      <rect x="202" y="493" width="780" height="54" rx="12" fill="#f1f5f9"/>
+      <text x="226" y="529" fill="#334155" font-size="24">github.com/Niyaswyd/adsa-library</text>
+    </g>
+
+    <g>
+      <circle cx="143" cy="671" r="36" fill="#2563eb"/>
+      <text x="143" y="682" fill="#fff" font-size="30" text-anchor="middle" font-weight="700">2</text>
+      <text x="202" y="671" fill="#15233b" font-size="34" font-weight="700">Settings → Pages തിരഞ്ഞെടുക്കുക</text>
+      <text x="202" y="722" fill="#52627a" font-size="26">Repository-യിലെ Settings തുറന്ന് Pages-ൽ പോകുക.</text>
+      <rect x="202" y="750" width="365" height="48" rx="12" fill="#eef2ff"/>
+      <text x="226" y="782" fill="#3730a3" font-size="24" font-weight="700">⚙ Settings</text>
+      <text x="586" y="782" fill="#64748b" font-size="24">›</text>
+      <rect x="615" y="750" width="260" height="48" rx="12" fill="#eef2ff"/>
+      <text x="639" y="782" fill="#3730a3" font-size="24" font-weight="700">Pages</text>
+    </g>
+
+    <g>
+      <circle cx="143" cy="921" r="36" fill="#2563eb"/>
+      <text x="143" y="932" fill="#fff" font-size="30" text-anchor="middle" font-weight="700">3</text>
+      <text x="202" y="921" fill="#15233b" font-size="34" font-weight="700">Branch, folder എന്നിവ സെറ്റ് ചെയ്യുക</text>
+      <text x="202" y="970" fill="#52627a" font-size="26">Build and deployment ഭാഗത്ത് താഴെ കാണുന്നതുപോലെ തിരഞ്ഞെടുക്കുക.</text>
+      <rect x="202" y="997" width="850" height="96" rx="14" fill="#f8fafc" stroke="#d8e1eb" stroke-width="2"/>
+      <text x="230" y="1037" fill="#64748b" font-size="22">Source</text>
+      <text x="420" y="1037" fill="#64748b" font-size="22">Branch</text>
+      <text x="690" y="1037" fill="#64748b" font-size="22">Folder</text>
+      <text x="230" y="1073" fill="#1e293b" font-size="25" font-weight="700">Deploy from a branch</text>
+      <text x="420" y="1073" fill="#1e293b" font-size="25" font-weight="700">main</text>
+      <text x="690" y="1073" fill="#1e293b" font-size="25" font-weight="700">/(root)</text>
+      <rect x="906" y="1018" width="116" height="54" rx="12" fill="#238636"/>
+      <text x="964" y="1054" fill="#fff" font-size="24" text-anchor="middle" font-weight="700">Save</text>
+    </g>
+
+    <g>
+      <circle cx="143" cy="1216" r="36" fill="#16a34a"/>
+      <text x="143" y="1227" fill="#fff" font-size="30" text-anchor="middle" font-weight="700">4</text>
+      <text x="202" y="1216" fill="#15233b" font-size="34" font-weight="700">കുറച്ച് മിനിറ്റ് കാത്തിരിക്കുക</text>
+      <text x="202" y="1265" fill="#52627a" font-size="26">Pages publish ചെയ്താൽ ഈ link തുറന്ന് പരിശോധിക്കുക:</text>
+      <rect x="202" y="1290" width="820" height="48" rx="12" fill="#ecfdf5"/>
+      <text x="226" y="1322" fill="#047857" font-size="26" font-weight="700">https://niyaswyd.github.io/adsa-library/</text>
+    </g>
+
+    <rect x="74" y="1410" width="1052" height="116" rx="24" fill="#fff7ed" stroke="#fed7aa" stroke-width="2"/>
+    <text x="108" y="1455" fill="#9a3412" font-size="25" font-weight="700">ശ്രദ്ധിക്കുക</text>
+    <text x="108" y="1494" fill="#7c2d12" font-size="23">Public ആക്കുന്നതിന് മുമ്പ് പേരുകളും sample records-ഉം സ്വകാര്യ വിവരങ്ങളല്ലെന്ന് ഉറപ്പാക്കുക.</text>
+    <text x="74" y="1568" fill="#64748b" font-size="19">Static website ആണ്; ഡാറ്റ browser-ന്റെ localStorage-ലാണ് സൂക്ഷിക്കുന്നത്.</text>
+  </g>
+</svg>
