@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Book Categories | Alathurpadi Dars</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a class="brand" href="index.html">
+          <img class="brand-mark" src="assets/alathurpadi-logo.png" alt="Alathurpadi Dars logo" />
+          <span><span class="brand-name">Alathurpadi Dars</span><small>Knowledge • Character • Excellence</small></span>
+        </a>
+        <nav class="nav" aria-label="Main navigation">
+          <a href="index.html">Home</a>
+          <a href="checkout.html">Check Out</a>
+          <a href="checkin.html">Check In</a>
+          <a href="fines.html">Fines</a>
+          <a href="category.html" aria-current="page">Category</a>
+        </nav>
+        <a href="students.html" class="nav-button">Students</a>
+      </div>
+    </header>
+    <main class="category-page">
+      <div class="container">
+        <section class="category-browser" aria-labelledby="category-title">
+          <span class="section-tag">Browse the collection</span>
+          <h1 id="category-title">Explore Book Categories</h1>
+          <p>Choose a category to explore sample titles, authors, and book barcodes.</p>
+          <div id="category-grid" class="category-grid" aria-label="Book categories"></div>
+        </section>
+      </div>
+    </main>
+
+    <div id="category-modal" class="library-modal category-modal" aria-hidden="true">
+      <section class="library-modal-dialog category-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+        <header class="library-modal-header">
+          <div>
+            <span class="section-tag">Category Books</span>
+            <h2 id="category-modal-title"></h2>
+          </div>
+          <button type="button" class="library-modal-close category-modal-close" aria-label="Close category books">×</button>
+        </header>
+        <div id="category-book-list" class="category-book-list"></div>
+        <p id="category-message" class="category-message" aria-live="polite"></p>
+      </section>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

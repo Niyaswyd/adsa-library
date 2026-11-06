@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Library Fines | Alathurpadi Dars</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a class="brand" href="index.html">
+          <img class="brand-mark" src="assets/alathurpadi-logo.png" alt="Alathurpadi Dars logo" />
+          <span><span class="brand-name">Alathurpadi Dars</span><small>Knowledge • Character • Excellence</small></span>
+        </a>
+        <nav class="nav" aria-label="Main navigation">
+          <a href="index.html">Home</a>
+          <a href="checkout.html">Check Out</a>
+          <a href="checkin.html">Check In</a>
+          <a href="fines.html" aria-current="page">Fines</a>
+          <a href="category.html">Category</a>
+        </nav>
+        <a href="students.html" class="nav-button">Students</a>
+      </div>
+    </header>
+    <main class="action-page">
+      <div class="container">
+        <section class="action-card">
+          <span class="section-tag">Library • Fine record</span>
+          <h1>Fines</h1>
+          <p>Fines are created automatically when a book is returned after its due date. The rate is ₹5 per late day.</p>
+          <p id="fine-message" class="fine-message" aria-live="polite"></p>
+          <div id="fine-list" class="fine-list" aria-live="polite"></div>
+          <a class="primary-btn" href="checkin.html">View Check In</a>
+          <a class="primary-btn action-back" href="index.html">Back to Home</a>
+        </section>
+      </div>
+    </main>
+    <script src="script.js"></script>
+  </body>
+</html>

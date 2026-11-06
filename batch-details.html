@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Batch Student List | Alathurpadi Dars</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <div class="brand">
+          <img class="brand-mark" src="assets/alathurpadi-logo.png" alt="Alathurpadi Dars logo" />
+          <div>
+            <span class="brand-name">Alathurpadi Dars</span>
+            <small>Knowledge • Character • Excellence</small>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Main navigation">
+          <a href="index.html">Home</a>
+          <a href="students.html">Students</a>
+          <a href="index.html#academics">Batch List</a>
+        </nav>
+
+        <a href="index.html" class="nav-button">Back Home</a>
+      </div>
+    </header>
+
+    <main class="batch-details-page">
+      <div class="container">
+        <div class="section-head batch-head">
+          <div>
+            <span class="section-tag">About Students</span>
+            <h1 id="batch-title">Batch 1</h1>
+          </div>
+        </div>
+
+        <div class="batch-summary">
+          <div class="batch-stat batch-stat-single">
+            <strong id="batch-total">50</strong>
+            <span>Batch Students</span>
+          </div>
+        </div>
+
+        <div class="batch-search-wrap">
+          <label for="batch-search">Search Students</label>
+          <input id="batch-search" type="search" placeholder="Search by name, roll, or library ID" />
+        </div>
+
+        <form id="batch-student-form" class="batch-student-add-form">
+          <label>
+            Student Name
+            <input name="name" type="text" placeholder="Enter student name" required />
+          </label>
+          <label>
+            Roll Number
+            <input name="roll" type="text" inputmode="numeric" maxlength="3" placeholder="001" required />
+          </label>
+          <label>
+            Library ID
+            <input name="libraryId" type="text" placeholder="Enter library ID" required />
+          </label>
+          <button type="submit" class="primary-btn">Add Student</button>
+          <p id="batch-student-message" aria-live="polite"></p>
+        </form>
+
+        <div id="batch-student-list" class="batch-student-list" aria-live="polite"></div>
+      </div>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
