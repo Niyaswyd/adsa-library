@@ -12,7 +12,7 @@
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body class="auth-locked">
     <header class="site-header">
       <div class="container nav-wrap">
         <a class="brand" href="index.html">
@@ -34,7 +34,15 @@
         <section class="category-browser" aria-labelledby="category-title">
           <span class="section-tag">Browse the collection</span>
           <h1 id="category-title">Explore Book Categories</h1>
-          <p>Choose a category to explore sample titles, authors, and book barcodes.</p>
+          <p>Choose a category to explore its titles, or add and remove categories below.</p>
+          <form id="category-form" class="category-manage-form">
+            <label for="category-name">Add a category</label>
+            <div class="category-manage-controls">
+              <input id="category-name" name="category-name" type="text" maxlength="80" placeholder="Category name" required />
+              <button class="primary-btn" type="submit">Add category</button>
+            </div>
+            <p id="category-manage-message" class="category-message" aria-live="polite"></p>
+          </form>
           <div id="category-grid" class="category-grid" aria-label="Book categories"></div>
         </section>
       </div>
@@ -54,6 +62,6 @@
       </section>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
   </body>
 </html>

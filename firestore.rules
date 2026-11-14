@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isActiveStaff() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/staff/$(request.auth.uid))
+        && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.active == true;
+    }
+
+    match /staff/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /students/{recordId} {
+      allow read, write: if isActiveStaff();
+    }
+
+    match /borrowedBooks/{recordId} {
+      allow read, write: if isActiveStaff();
+    }
+
+    match /returnedBooks/{recordId} {
+      allow read, write: if isActiveStaff();
+    }
+
+    match /categorySettings/{recordId} {
+      allow read, write: if isActiveStaff();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

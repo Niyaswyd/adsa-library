@@ -1,4 +1,292 @@
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut
+} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  onSnapshot,
+  writeBatch
+} from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+import { firebaseConfig } from './firebase-config.js';
+
 document.addEventListener('DOMContentLoaded', () => {
+  const firebaseApp = initializeApp(firebaseConfig);
+  const auth = getAuth(firebaseApp);
+  const database = getFirestore(firebaseApp);
+  const authGate = document.createElement('main');
+  authGate.id = 'library-auth';
+  authGate.innerHTML = `
+    <section class="library-auth-card" aria-labelledby="library-auth-title">
+      <span class="section-tag">Alathurpadi Dars</span>
+      <h1 id="library-auth-title">Staff sign in</h1>
+      <p class="library-auth-description">Sign in with an authorized, verified staff account to access library records.</p>
+      <form class="library-auth-form">
+        <label for="library-auth-email">Email</label>
+        <input id="library-auth-email" name="email" type="email" autocomplete="username" required />
+        <label for="library-auth-password">Password</label>
+        <input id="library-auth-password" name="password" type="password" autocomplete="current-password" required />
+        <button class="primary-btn" type="submit">Sign in with email</button>
+      </form>
+      <button class="library-auth-google" type="button">Sign in with Google</button>
+      <p class="library-auth-message" role="status" aria-live="polite"></p>
+      <button class="library-auth-signout" type="button" hidden>Sign out</button>
+    </section>`;
+  document.body.prepend(authGate);
+
+  const authMessage = authGate.querySelector('.library-auth-message');
+  const authForm = authGate.querySelector('.library-auth-form');
+  const authGoogleButton = authGate.querySelector('.library-auth-google');
+  const authSignOutButton = authGate.querySelector('.library-auth-signout');
+
+  const displayAuthError = (error) => {
+    console.error('Firebase authentication or staff verification failed.', error);
+    if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      authMessage.textContent = 'Email or password is incorrect.';
+    } else if (error.code === 'auth/popup-closed-by-user') {
+      authMessage.textContent = 'Google sign-in was cancelled.';
+    } else {
+      authMessage.textContent = 'Sign-in could not be completed. Check Firebase setup and try again.';
+    }
+  };
+
+  const showSignedOutMessage = (message) => {
+    authGate.querySelector('.library-auth-description').textContent = message;
+    authForm.hidden = true;
+    authGoogleButton.hidden = true;
+    authSignOutButton.hidden = false;
+  };
+
+  authForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(authForm);
+    const submitButton = authForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    authMessage.textContent = '';
+    try {
+      await signInWithEmailAndPassword(auth, String(formData.get('email')), String(formData.get('password')));
+      window.location.reload();
+    } catch (error) {
+      displayAuthError(error);
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+
+  authGoogleButton.addEventListener('click', async () => {
+    authGoogleButton.disabled = true;
+    authMessage.textContent = '';
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      window.location.reload();
+    } catch (error) {
+      displayAuthError(error);
+    } finally {
+      authGoogleButton.disabled = false;
+    }
+  });
+
+  authSignOutButton.addEventListener('click', async () => {
+    try {
+      await signOut(auth);
+      window.location.reload();
+    } catch (error) {
+      displayAuthError(error);
+    }
+  });
+
+  let stopAuthListener;
+  const currentUser = new Promise((resolve, reject) => {
+    stopAuthListener = onAuthStateChanged(auth, (user) => {
+      stopAuthListener();
+      resolve(user);
+    }, reject);
+  });
+
+  currentUser.then(async (user) => {
+    if (!user) return;
+
+    let localStorage;
+    try {
+      const staffRecord = await getDoc(doc(database, 'staff', user.uid));
+      if (!user.emailVerified || !staffRecord.exists() || staffRecord.data().active !== true) {
+        await signOut(auth);
+        showSignedOutMessage('This account is not authorized for library records. Ask an administrator to grant staff access.');
+        return;
+      }
+
+      const collectionKeys = {
+        students: 'alathurpadi-library-students',
+        borrowedBooks: 'alathurpadi-library-borrowed-books',
+        returnedBooks: 'alathurpadi-library-returned-books',
+        categorySettings: 'adsa-library-book-categories'
+      };
+      const cloudRecords = new Map();
+      const writeQueues = new Map();
+      const storageValues = new Map();
+
+      const cacheCollection = (collectionName, records) => {
+        cloudRecords.set(collectionName, records);
+        const key = collectionKeys[collectionName];
+        storageValues.set(key, JSON.stringify(records));
+        window.dispatchEvent(new StorageEvent('storage', { key }));
+      };
+
+      const snapshots = await Promise.all(Object.keys(collectionKeys).map(async (collectionName) => {
+        const snapshot = await getDocs(collection(database, collectionName));
+        return [collectionName, snapshot.docs.map((record) => record.data())];
+      }));
+
+      snapshots.forEach(([collectionName, records]) => {
+        cloudRecords.set(collectionName, records);
+        storageValues.set(collectionKeys[collectionName], JSON.stringify(records));
+      });
+      storageValues.set('alathurpadi-library-batch-seed-v1', 'true');
+
+      const applyCollectionDiff = async (collectionName, previousRecords, nextRecords) => {
+        const previousById = new Map(previousRecords.map((record) => [record.id, record]));
+        const nextById = new Map();
+        nextRecords.forEach((record) => {
+          if (!record || typeof record.id !== 'string' || !record.id || record.id.includes('/')) {
+            throw new Error(`Invalid record ID in ${collectionName}.`);
+          }
+          nextById.set(record.id, record);
+        });
+
+        const operations = [];
+        nextById.forEach((record, id) => {
+          if (JSON.stringify(previousById.get(id)) === JSON.stringify(record)) return;
+          operations.push({ type: 'set', id: encodeURIComponent(id), record });
+        });
+        previousById.forEach((record, id) => {
+          if (!nextById.has(id)) operations.push({ type: 'delete', id: encodeURIComponent(id) });
+        });
+
+        for (let offset = 0; offset < operations.length; offset += 450) {
+          const batch = writeBatch(database);
+          operations.slice(offset, offset + 450).forEach((operation) => {
+            const reference = doc(database, collectionName, operation.id);
+            if (operation.type === 'set') batch.set(reference, operation.record);
+            else batch.delete(reference);
+          });
+          await batch.commit();
+        }
+      };
+
+      const refreshCollection = async (collectionName) => {
+        const snapshot = await getDocs(collection(database, collectionName));
+        cacheCollection(collectionName, snapshot.docs.map((record) => record.data()));
+      };
+
+      Object.keys(collectionKeys).forEach((collectionName) => {
+        onSnapshot(collection(database, collectionName), (snapshot) => {
+          cacheCollection(collectionName, snapshot.docs.map((record) => record.data()));
+        }, (error) => {
+          console.error(`Firestore updates for ${collectionName} could not be received.`, error);
+          showCloudError('Live shared-library updates stopped. Reload this page and check your connection.');
+        });
+      });
+
+      const cloudStorage = {
+        getItem(key) {
+          return storageValues.has(key) ? storageValues.get(key) : null;
+        },
+        setItem(key, value) {
+          const collectionName = Object.keys(collectionKeys).find((name) => collectionKeys[name] === key);
+          if (!collectionName) throw new Error(`Unsupported library storage key: ${key}`);
+          const nextRecords = JSON.parse(value);
+          if (!Array.isArray(nextRecords)) throw new Error(`Invalid ${collectionName} data.`);
+          const previousRecords = cloudRecords.get(collectionName) || [];
+          cloudRecords.set(collectionName, nextRecords);
+          storageValues.set(key, JSON.stringify(nextRecords));
+
+          const previousWrite = writeQueues.get(collectionName) || Promise.resolve();
+          const write = previousWrite
+            .catch(() => undefined)
+            .then(() => applyCollectionDiff(collectionName, previousRecords, nextRecords));
+          writeQueues.set(collectionName, write);
+          write.catch(async (error) => {
+            console.error(`Saving ${collectionName} to Firestore failed.`, error);
+            showCloudError('A change could not be saved to the shared library. Check your connection and staff access, then reload.');
+            try {
+              await refreshCollection(collectionName);
+            } catch (refreshError) {
+              console.error(`Refreshing ${collectionName} from Firestore failed.`, refreshError);
+            }
+          });
+        }
+      };
+
+      const showCloudError = (message) => {
+        let notification = document.getElementById('library-cloud-message');
+        if (!notification) {
+          notification = document.createElement('div');
+          notification.id = 'library-cloud-message';
+          notification.setAttribute('role', 'alert');
+          document.body.append(notification);
+        }
+        notification.textContent = message;
+      };
+
+      const revokeSession = async () => {
+        try {
+          await signOut(auth);
+        } catch (error) {
+          console.error('Signing out after staff access was revoked failed.', error);
+        }
+        window.location.reload();
+      };
+
+      onSnapshot(doc(database, 'staff', user.uid), (snapshot) => {
+        if (!snapshot.exists() || snapshot.data().active !== true) {
+          void revokeSession();
+        }
+      }, (error) => {
+        console.error('Staff authorization updates could not be received.', error);
+        showCloudError('Staff access could not be verified. Signing out.');
+        void revokeSession();
+      });
+
+      const header = document.querySelector('.nav-wrap');
+      if (header) {
+        const account = document.createElement('div');
+        account.className = 'library-auth-account';
+        const identity = document.createElement('span');
+        identity.textContent = user.email || 'Staff';
+        const logoutButton = document.createElement('button');
+        logoutButton.type = 'button';
+        logoutButton.textContent = 'Sign out';
+        logoutButton.addEventListener('click', async () => {
+          try {
+            await signOut(auth);
+            window.location.reload();
+          } catch (error) {
+            showCloudError('Sign out failed. Reload the page and try again.');
+            console.error('Firebase sign-out failed.', error);
+          }
+        });
+        account.append(identity, logoutButton);
+        header.append(account);
+      }
+
+      document.body.classList.remove('auth-locked');
+      authGate.remove();
+      stopAuthListener();
+      localStorage = cloudStorage;
+    } catch (error) {
+      console.error('Firebase staff access or shared records could not be loaded.', error);
+      showSignedOutMessage('Shared library access could not be verified. Ensure Authentication, Firestore, and firestore.rules are configured.');
+      return;
+    }
+
   if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
     const cursor = document.createElement('div');
     cursor.className = 'cursor-pointer';
@@ -69,85 +357,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const libraryStorageKey = 'alathurpadi-library-students';
   const batchNames = [...Array.from({ length: 7 }, (_, index) => `Batch ${index + 1}`), 'Suffa'];
-  const batchStudentNames = [
-    'Aisha Rahman', 'Muhammed Yasin', 'Fathima Noor', 'Abdul Kareem', 'Hana Fathima',
-    'Mohammed Irfan', 'Sana Fathima', 'Abdullah Ali', 'Nimra Basheer', 'Yaseen Ahmed',
-    'Rafiya Sultana', 'Ahammed Niyas', 'Jumana K', 'Ashfaq P', 'Zainab Huda',
-    'Hassan Ali', 'Fida Fathima', 'Adhil Noushad', 'Naureen S', 'Rahma Nizar',
-    'Mohamed Safwan', 'Sajna Beegum', 'Afnan Yusuf', 'Inaya Rahman', 'Arif Navas',
-    'Nihar Ahammed', 'Liyana Khadeeja', 'Shahul Hameed', 'Rashida Banu', 'Muneer Babu',
-    'Amina Fathima', 'Jabeen Beevi', 'Husna K', 'Basil Abdulla', 'Mariam Nazeer',
-    'Sulaiman A', 'Noorul Ameen', 'Hiba Fathima', 'Sameer Karim', 'Alaaudeen A',
-    'Shamna P', 'Farhan Sadique', 'Yusra Shafi', 'Nabeel Ahmed', 'Fayiza Beevi',
-    'Suhail M', 'Midhila K', 'Rizwan C', 'Mubashira S', 'Anwar Ali', 'Nayha J',
-    'Mufeedh M', 'Ashrin K', 'Hadiya P', 'Sana Mariyam', 'Hajira M', 'Nazar A',
-    'Nafla K', 'Basil K', 'Sumaiya B', 'Faris H', 'Khadija S'
-  ];
-  const initialLibraryData = [
-    { id: 'student-1', name: 'Aisha Rahman', roll: '001', libraryId: 'LD-2014', batch: 'Batch 1', status: 'Active' },
-    { id: 'student-2', name: 'Muhammed Yasin', roll: '002', libraryId: 'LD-2048', batch: 'Batch 1', status: 'Issued' },
-    { id: 'student-3', name: 'Fathima Noor', roll: '003', libraryId: 'LD-2091', batch: 'Batch 1', status: 'Active' },
-    { id: 'student-4', name: 'Abdul Kareem', roll: '004', libraryId: 'LD-2117', batch: 'Batch 1', status: 'Overdue' },
-    { id: 'student-5', name: 'Hana Fathima', roll: '005', libraryId: 'LD-2184', batch: 'Batch 1', status: 'Active' },
-    { id: 'student-6', name: 'Mohammed Irfan', roll: '006', libraryId: 'LD-2230', batch: 'Batch 1', status: 'Issued' }
-  ];
-  const batchStudentSeed = batchNames.flatMap((batch, batchIndex) =>
-    Array.from({ length: 50 }, (_, index) => {
-      const knownStudent = batchIndex === 0 ? initialLibraryData[index] : null;
-      const batchCode = `B${batchIndex + 1}`;
-      return {
-        id: knownStudent?.id || `batch-${batchCode.toLowerCase()}-${index + 1}`,
-        name: knownStudent?.name || batchStudentNames[index % batchStudentNames.length],
-        roll: String(index + 1).padStart(3, '0'),
-        libraryId: knownStudent?.libraryId || (batchIndex === 0
-          ? `LD-${1000 + index + 1}`
-          : `LD-${batchCode}-${String(index + 1).padStart(3, '0')}`),
-        batch,
-        status: knownStudent?.status || (index % 5 === 0 ? 'Issued' : 'Active')
-      };
-    })
-  );
-  const batchSeedMigrationKey = 'alathurpadi-library-batch-seed-v1';
 
   const loadSharedLibraryData = () => {
-    let students = initialLibraryData.map((student) => ({ ...student }));
     const savedStudents = localStorage.getItem(libraryStorageKey);
-    if (savedStudents !== null) {
-      const parsedStudents = JSON.parse(savedStudents);
-      if (!Array.isArray(parsedStudents) || parsedStudents.some((student) =>
-        !student ||
-        typeof student.id !== 'string' ||
-        typeof student.name !== 'string' ||
-        typeof student.libraryId !== 'string'
-      )) {
-        throw new Error('Saved student records are invalid.');
-      }
-      students = parsedStudents.map((student) => ({
-        ...student,
-        roll: typeof student.roll === 'string' ? student.roll : '',
-        batch: batchNames.includes(student.batch) ? student.batch : 'Batch 1',
-        status: ['Active', 'Issued', 'Overdue'].includes(student.status) ? student.status : 'Active'
-      }));
+    if (savedStudents === null) return [];
+    const students = JSON.parse(savedStudents);
+    if (!Array.isArray(students) || students.some((student) =>
+      !student ||
+      typeof student.id !== 'string' ||
+      typeof student.name !== 'string' ||
+      typeof student.libraryId !== 'string'
+    )) {
+      throw new Error('Saved student records are invalid.');
     }
 
-    if (localStorage.getItem(batchSeedMigrationKey) !== 'true') {
-      const knownLibraryIds = new Set(students.map((student) => student.libraryId.toLowerCase()));
-      batchStudentSeed.forEach((seedStudent) => {
-        if (!knownLibraryIds.has(seedStudent.libraryId.toLowerCase())) {
-          students.push(seedStudent);
-          knownLibraryIds.add(seedStudent.libraryId.toLowerCase());
-        }
-      });
-      students = students.map((student) => {
-        if (student.roll) return student;
-        const matchingSeed = batchStudentSeed.find((seedStudent) => seedStudent.libraryId === student.libraryId);
-        return { ...student, roll: matchingSeed?.roll || '' };
-      });
-      localStorage.setItem(libraryStorageKey, JSON.stringify(students));
-      localStorage.setItem(batchSeedMigrationKey, 'true');
-    }
-
-    return students;
+    return students.map((student) => ({
+      ...student,
+      roll: typeof student.roll === 'string' ? student.roll : '',
+      batch: batchNames.includes(student.batch) ? student.batch : 'Batch 1',
+      status: ['Active', 'Issued', 'Overdue'].includes(student.status) ? student.status : 'Active'
+    }));
   };
 
   const saveSharedLibraryData = (students) => {
@@ -446,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderBatchStudents();
   }
 
-  const bookCategories = [
+  let bookCategories = [
     { name: 'Islamic Studies & Philosophy', books: [
       { title: 'Wings of Knowledge', author: 'Dr. A. P. J. Abdul Kalam', barcode: '9780140123451' },
       { title: 'In the Footsteps of the Prophet', author: 'Tariq Ramadan', barcode: '9780195308808' },
@@ -498,6 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { title: 'Matilda', author: 'Roald Dahl', barcode: '9780142410370' }
     ] }
   ];
+  bookCategories = bookCategories.map((category, index) => ({ ...category, id: `default-category-${index + 1}` }));
   const bookInventory = [
     { bookNumber: 'BK-100318', bookName: 'Foundations of Physics', category: 'Physics', author: 'Not listed' },
     { bookNumber: 'BK-100245', bookName: 'Algebra Basics', category: 'Mathematics', author: 'Not listed' },
@@ -536,8 +766,39 @@ document.addEventListener('DOMContentLoaded', () => {
   const categoryBookList = document.getElementById('category-book-list');
   const categoryMessage = document.getElementById('category-message');
   const categoryCloseButton = document.querySelector('.category-modal-close');
+  const categoryForm = document.getElementById('category-form');
+  const categoryNameInput = document.getElementById('category-name');
+  const categoryManageMessage = document.getElementById('category-manage-message');
 
   if (categoryGrid && categoryModal && categoryModalTitle && categoryBookList && categoryMessage && categoryCloseButton) {
+    const categoryStorageKey = 'adsa-library-book-categories';
+    const categoryDocumentId = 'catalog';
+    const persistCategories = () => localStorage.setItem(categoryStorageKey, JSON.stringify([
+      { id: categoryDocumentId, categories: bookCategories }
+    ]));
+
+    try {
+      const savedCatalog = localStorage.getItem(categoryStorageKey);
+      if (savedCatalog === null) {
+        persistCategories();
+      } else {
+        const records = JSON.parse(savedCatalog);
+        if (!Array.isArray(records)) throw new Error('Saved categories are invalid.');
+        if (records.length === 0) {
+          persistCategories();
+        } else {
+          const catalog = records.find((record) => record.id === categoryDocumentId);
+          if (!catalog || !Array.isArray(catalog.categories)) throw new Error('Saved categories are invalid.');
+          bookCategories = catalog.categories.filter((category) =>
+            category && typeof category.id === 'string' && typeof category.name === 'string' && Array.isArray(category.books)
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Shared book categories could not be loaded.', error);
+      if (categoryManageMessage) categoryManageMessage.textContent = 'Categories could not be loaded or saved. Check Firestore rules and reload.';
+    }
+
     let activeCategoryButton = null;
     const closeCategoryModal = () => {
       categoryModal.classList.remove('is-open');
@@ -546,13 +807,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (activeCategoryButton) activeCategoryButton.focus();
     };
 
-    bookCategories.forEach((category, index) => {
+    const renderCategories = () => {
+      categoryGrid.replaceChildren();
+      bookCategories.forEach((category, index) => {
+      const card = document.createElement('div');
+      card.className = 'category-option';
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'category-option';
+      button.className = 'category-open-button';
       button.setAttribute('aria-haspopup', 'dialog');
-      button.innerHTML = `<span class="category-option-number">${String(index + 1).padStart(2, '0')}</span><span class="category-option-name"></span><span class="category-option-count">3 sample books</span>`;
+      button.innerHTML = `<span class="category-option-number">${String(index + 1).padStart(2, '0')}</span><span class="category-option-name"></span><span class="category-option-count"></span>`;
       button.querySelector('.category-option-name').textContent = category.name;
+      button.querySelector('.category-option-count').textContent = `${category.books.length} ${category.books.length === 1 ? 'book' : 'books'}`;
       button.addEventListener('click', () => {
         activeCategoryButton = button;
         categoryModalTitle.textContent = category.name;
@@ -614,7 +880,63 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.add('modal-open');
         categoryCloseButton.focus();
       });
-      categoryGrid.append(button);
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'category-delete-button';
+      deleteButton.textContent = 'Delete';
+      deleteButton.setAttribute('aria-label', `Delete ${category.name} category`);
+      deleteButton.addEventListener('click', () => {
+        if (!window.confirm(`Delete the “${category.name}” category?`)) return;
+        const removedCategory = bookCategories.splice(index, 1)[0];
+        try {
+          persistCategories();
+          if (categoryManageMessage) categoryManageMessage.textContent = `${removedCategory.name} category deleted.`;
+          renderCategories();
+        } catch (error) {
+          bookCategories.splice(index, 0, removedCategory);
+          if (categoryManageMessage) categoryManageMessage.textContent = 'Category could not be deleted. Try again.';
+          renderCategories();
+        }
+      });
+      card.append(button, deleteButton);
+      categoryGrid.append(card);
+      });
+    };
+
+    categoryForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = categoryNameInput.value.trim();
+      if (!name) return;
+      if (bookCategories.some((category) => category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+        categoryManageMessage.textContent = 'That category already exists.';
+        return;
+      }
+      bookCategories.push({ id: `category-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name, books: [] });
+      try {
+        persistCategories();
+        categoryForm.reset();
+        categoryManageMessage.textContent = `${name} category added.`;
+        renderCategories();
+      } catch (error) {
+        bookCategories.pop();
+        categoryManageMessage.textContent = 'Category could not be saved. Try again.';
+        renderCategories();
+      }
+    });
+
+    renderCategories();
+
+    window.addEventListener('storage', (event) => {
+      if (event.key !== categoryStorageKey) return;
+      try {
+        const records = JSON.parse(localStorage.getItem(categoryStorageKey) || '[]');
+        const catalog = records.find((record) => record.id === categoryDocumentId);
+        if (!catalog || !Array.isArray(catalog.categories)) return;
+        bookCategories = catalog.categories;
+        renderCategories();
+      } catch (error) {
+        if (categoryManageMessage) categoryManageMessage.textContent = 'Updated categories could not be read.';
+      }
     });
 
     categoryCloseButton.addEventListener('click', closeCategoryModal);
@@ -636,7 +958,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const studentDirectoryForm = document.getElementById('student-directory-form');
   const studentDirectoryMessage = document.getElementById('student-directory-message');
   const libraryModalCloseButton = document.querySelector('.library-modal-close:not(.faculty-modal-close):not(.schedule-modal-close)');
-  let libraryData = initialLibraryData.map((student) => ({ ...student }));
+  let libraryData = [];
 
   const saveLibraryData = () => {
     try {
@@ -653,7 +975,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       libraryData = loadSharedLibraryData();
     } catch (error) {
-      studentDirectoryMessage.textContent = 'Saved student data could not be read. Showing the example records instead.';
+      studentDirectoryMessage.textContent = 'Saved student data could not be read.';
     }
 
     const makeTextInput = (value, label) => {
@@ -1152,14 +1474,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (checkinTableBody && checkinMessage) {
     const storageKey = 'alathurpadi-library-borrowed-books';
-    const initialBorrowedBooks = [
-      { id: 'borrowed-1', studentName: 'Aisha Rahman', libraryId: 'LD-2014', bookNumber: 'BK-100318', bookName: 'Foundations of Physics', issuedDate: '2026-10-20' },
-      { id: 'borrowed-2', studentName: 'Muhammed Yasin', libraryId: 'LD-2048', bookNumber: 'BK-100245', bookName: 'Algebra Basics', issuedDate: '2026-10-22' },
-      { id: 'borrowed-3', studentName: 'Fathima Noor', libraryId: 'LD-2091', bookNumber: 'BK-100412', bookName: 'The World of Science', issuedDate: '2026-10-24' },
-      { id: 'borrowed-4', studentName: 'Abdul Kareem', libraryId: 'LD-2117', bookNumber: 'BK-100587', bookName: 'A Short History of Kerala', issuedDate: '2026-10-26' },
-      { id: 'borrowed-5', studentName: 'Hana Fathima', libraryId: 'LD-2184', bookNumber: 'BK-100632', bookName: 'English Reader', issuedDate: '2026-10-28' }
-    ];
-    let borrowedBooks = initialBorrowedBooks.map(enrichBorrowedBook);
+    let borrowedBooks = [];
     let editingBookId = null;
 
     const addDays = (date, days) => {
@@ -1208,8 +1523,8 @@ document.addEventListener('DOMContentLoaded', () => {
         borrowedBooks = parsedBooks.map(enrichBorrowedBook);
       }
     } catch (error) {
-      borrowedBooks = initialBorrowedBooks.map(enrichBorrowedBook);
-      showCheckinMessage('Saved borrowing records could not be read. Showing the example records instead.');
+      borrowedBooks = [];
+      showCheckinMessage('Saved borrowing records could not be read.');
     }
 
     const createActionButton = (text, className, label) => {
@@ -1458,21 +1773,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (checkoutForm && checkoutStudentId && checkoutStudentDetails && checkoutMessage && checkoutBookNumber && checkoutBookName && checkoutCategory && checkoutAuthor) {
     const borrowedBooksKey = 'alathurpadi-library-borrowed-books';
     const studentsKey = 'alathurpadi-library-students';
-    const initialBorrowedBooks = [
-      { id: 'borrowed-1', studentName: 'Aisha Rahman', libraryId: 'LD-2014', bookNumber: 'BK-100318', bookName: 'Foundations of Physics', issuedDate: '2026-10-20' },
-      { id: 'borrowed-2', studentName: 'Muhammed Yasin', libraryId: 'LD-2048', bookNumber: 'BK-100245', bookName: 'Algebra Basics', issuedDate: '2026-10-22' },
-      { id: 'borrowed-3', studentName: 'Fathima Noor', libraryId: 'LD-2091', bookNumber: 'BK-100412', bookName: 'The World of Science', issuedDate: '2026-10-24' },
-      { id: 'borrowed-4', studentName: 'Abdul Kareem', libraryId: 'LD-2117', bookNumber: 'BK-100587', bookName: 'A Short History of Kerala', issuedDate: '2026-10-26' },
-      { id: 'borrowed-5', studentName: 'Hana Fathima', libraryId: 'LD-2184', bookNumber: 'BK-100632', bookName: 'English Reader', issuedDate: '2026-10-28' }
-    ];
-    const defaultStudents = initialBorrowedBooks.map(({ studentName, libraryId }, index) => ({
-      id: `student-${index + 1}`,
-      name: studentName,
-      libraryId,
-      batch: 'Batch 1'
-    }));
-
-    let students = defaultStudents;
+    let students = [];
     let selectedStudent = null;
 
     const showCheckoutMessage = (message) => {
@@ -1483,8 +1784,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         students = loadSharedLibraryData();
       } catch (error) {
-        students = defaultStudents;
-        if (showError) showCheckoutMessage('Student records could not be read. Showing the example students.');
+        students = [];
+        if (showError) showCheckoutMessage('Student records could not be read.');
       }
 
       return students;
@@ -1525,7 +1826,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const readBorrowedBooks = () => {
       const savedBooks = localStorage.getItem(borrowedBooksKey);
-      if (savedBooks === null) return initialBorrowedBooks.map(enrichBorrowedBook);
+      if (savedBooks === null) return [];
       const parsedBooks = JSON.parse(savedBooks);
       if (!Array.isArray(parsedBooks) || parsedBooks.some((book) =>
         !book ||
@@ -1721,4 +2022,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     renderFines();
   }
+  }).catch((error) => {
+    console.error('Firebase Authentication could not be initialized.', error);
+    authMessage.textContent = 'Firebase Authentication could not be reached. Check your connection and try again.';
+  });
 });
